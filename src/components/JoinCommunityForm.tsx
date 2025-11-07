@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,9 @@ const translations = {
     emailPlaceholder: "your.email@example.com",
     phonePlaceholder: "1234567890",
     phoneHelper: "Enter 10-13 digits without spaces or special characters",
+    intentionLabel: "Your Intentions",
+    intentionPlaceholder: "Tell us why you want to join and what you hope to do",
+    intentionHelper: "This helps us understand you better before granting access.",
     rulesTitle: "Community Rules & Guidelines",
     rules: [
       "No spamming or promotional links",
@@ -46,6 +50,7 @@ const translations = {
       emailInvalid: "Please enter a valid email address",
       phoneRequired: "WhatsApp number is required",
       phoneInvalid: "Please enter a valid 10-13 digit phone number",
+      intentionRequired: "Please share your intentions (a short note)",
       validationError: "Validation Error",
       fixErrors: "Please fix the errors in the form",
       agreementRequired: "Agreement Required",
@@ -66,6 +71,9 @@ const translations = {
     emailPlaceholder: "your.email@example.com",
     phonePlaceholder: "1234567890",
     phoneHelper: "இடைவெளிகள் அல்லது சிறப்பு எழுத்துக்கள் இல்லாமல் 10-13 இலக்கங்களை உள்ளிடவும்",
+    intentionLabel: "உங்கள் நோக்கம்",
+    intentionPlaceholder: "ஏன் சேர விரும்புகிறீர்கள் மற்றும் நீங்கள் என்ன செய்ய நினைக்கிறீர்கள் என்பதைச் சொல்லுங்கள்",
+    intentionHelper: "அணுகலை வழங்குவதற்கு முன் உங்களை பற்றி அறிந்துகொள்ள இது உதவும்.",
     rulesTitle: "சமூக விதிகள் மற்றும் வழிகாட்டுதல்கள்",
     rules: [
       "ஸ்பேம் அல்லது விளம்பர இணைப்புகள் இல்லை",
@@ -90,6 +98,7 @@ const translations = {
       emailInvalid: "செல்லுபடியாகும் மின்னஞ்சல் முகவரியை உள்ளிடவும்",
       phoneRequired: "WhatsApp எண் தேவை",
       phoneInvalid: "செல்லுபடியாகும் 10-13 இலக்க தொலைபேசி எண்ணை உள்ளிடவும்",
+      intentionRequired: "தயவு செய்து உங்கள் நோக்கத்தைச் பகிரவும் (சுருக்கமாக)",
       validationError: "சரிபார்ப்பு பிழை",
       fixErrors: "படிவத்தில் உள்ள பிழைகளைச் சரிசெய்யவும்",
       agreementRequired: "ஒப்பந்தம் தேவை",
@@ -110,6 +119,9 @@ const translations = {
     emailPlaceholder: "your.email@example.com",
     phonePlaceholder: "1234567890",
     phoneHelper: "स्पेस या विशेष वर्णों के बिना 10-13 अंक दर्ज करें",
+    intentionLabel: "आपका उद्देश्य",
+    intentionPlaceholder: "क्यों शामिल होना चाहते हैं और आप क्या करना चाहते हैं लिखें",
+    intentionHelper: "ग्रुप एक्सेस देने से पहले हमें आपके बारे में जानने में मदद करेगा।",
     rulesTitle: "समुदाय नियम और दिशानिर्देश",
     rules: [
       "कोई स्पैम या प्रचार लिंक नहीं",
@@ -134,6 +146,7 @@ const translations = {
       emailInvalid: "कृपया एक मान्य ईमेल पता दर्ज करें",
       phoneRequired: "WhatsApp नंबर आवश्यक है",
       phoneInvalid: "कृपया एक मान्य 10-13 अंकों का फोन नंबर दर्ज करें",
+      intentionRequired: "कृपया अपना उद्देश्य साझा करें (संक्षिप्त)",
       validationError: "सत्यापन त्रुटि",
       fixErrors: "कृपया फॉर्म में त्रुटियों को ठीक करें",
       agreementRequired: "समझौता आवश्यक",
@@ -150,7 +163,8 @@ const JoinCommunityForm = () => {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    whatsappNumber: ""
+    whatsappNumber: "",
+    intention: ""
   });
   const [agreedToRules, setAgreedToRules] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -195,6 +209,10 @@ const JoinCommunityForm = () => {
       newErrors.whatsappNumber = t.errors.phoneInvalid;
     }
 
+    if (!formData.intention.trim()) {
+      newErrors.intention = t.errors.intentionRequired;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -220,17 +238,43 @@ const JoinCommunityForm = () => {
       return;
     }
 
-    // Simulate form submission
-    setSubmitted(true);
-    toast({
-      title: t.successToast,
-      description: t.successToastDescription
-    });
+    // Send intentions via backend (automated)
+    fetch("/api/send-intentions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: formData.fullName,
+        email: formData.email,
+        whatsappNumber: formData.whatsappNumber,
+        intention: formData.intention,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || "Failed to send intentions");
+        }
+        return res.json();
+      })
+      .then(() => {
+        setSubmitted(true);
+        toast({
+          title: t.successToast,
+          description: t.successToastDescription,
+        });
+      })
+      .catch((err) => {
+        toast({
+          title: t.errors.validationError,
+          description: err.message || "Unable to send email. Please try again later.",
+          variant: "destructive",
+        });
+      });
   };
 
   const handleJoinWhatsApp = () => {
     // Replace with your actual WhatsApp group invite URL
-    const whatsappUrl = "https://chat.whatsapp.com/F7jgmnDn5oTCQ6OaHFvBUW";
+    const whatsappUrl = "https://chat.whatsapp.com/IseeIgDZ7SL3geAaj2CmjY";
     window.open(whatsappUrl, "_blank");
   };
 
@@ -344,6 +388,24 @@ const JoinCommunityForm = () => {
               )}
               <p className="text-xs text-muted-foreground">
                 {t.phoneHelper}
+              </p>
+            </div>
+
+            {/* Intentions Text */}
+            <div className="space-y-2">
+              <Label htmlFor="intention">{t.intentionLabel} {t.required}</Label>
+              <Textarea
+                id="intention"
+                placeholder={t.intentionPlaceholder}
+                value={formData.intention}
+                onChange={(e) => handleInputChange("intention", e.target.value)}
+                className={`min-h-24 ${errors.intention ? "border-destructive" : ""}`}
+              />
+              {errors.intention && (
+                <p className="text-sm text-destructive">{errors.intention}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t.intentionHelper}
               </p>
             </div>
 
